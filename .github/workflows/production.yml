@@ -1,0 +1,111 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10.12]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests with Pytest
+        run: pytest --maxfail=5 --disable-warnings
+
+      - name: Upload Pytest Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-results
+          path: ./tests
+
+  build-and-push-docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: Sughanditha2002/my-fastapi-app:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=registry,ref=hariniv02/my-fastapi-app:cache
+          cache-to: type=inline,mode=max
+          build-args: |
+            QR_CODE_DIR=/myapp/qr_codes
+            FILL_COLOR=red
+            BACK_COLOR=white
+
+  trivy-scan:
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Trivy Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-cache-${{ github.sha }}
+          restore-keys: |
+            trivy-cache-
+
+      - name: Authenticate to GitHub Container Registry
+        env:
+          TRIVY_USERNAME: "${{ github.actor }}"
+          TRIVY_PASSWORD: "${{ secrets.GHCR_PAT }}"
+        run: echo $TRIVY_PASSWORD | docker login ghcr.io -u $TRIVY_USERNAME --password-stdin
+
+      - name: Run Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'Sughanditha2002/my-fastapi-app:${{ github.sha }}'
+          format: 'table'
+          exit-code: '0' # Allow pipeline to pass with HIGH vulnerabilities
+          ignore-unfixed: true
+          severity: 'CRITICAL'
+
+  deploy:
+    needs: trivy-scan
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to Production
+        run: |
+          echo "Deploying to production..."
