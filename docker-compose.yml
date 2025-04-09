@@ -1,0 +1,23 @@
+services:
+  fastapi:
+    build: .
+    volumes:
+      - ./qr_codes:/myapp/qr_codes
+      - ./:/myapp/
+    environment:
+      QR_CODE_DIR: /myapp/qr_codes
+      FILL_COLOR: red
+      BACK_COLOR: white
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - fastapi
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./qr_codes:/var/www/qr_codes

@@ -1,0 +1,5 @@
+[
+  "tests/start_test.py::test_create_and_delete_qr_code",
+  "tests/start_test.py::test_create_qr_code_unauthorized",
+  "tests/start_test.py::test_login_for_access_token"
+]
