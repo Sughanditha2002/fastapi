@@ -7,10 +7,7 @@ from dotenv import load_dotenv
 # into the environment for this script. This is useful for keeping secrets out of source code.
 load_dotenv()
 
-# Environment Variables for Configuration
 
-# QR_DIRECTORY specifies the directory where QR codes are saved.
-# If not specified in the environment, it defaults to './qr_codes'.
 QR_DIRECTORY = Path(os.getenv('QR_CODE_DIR', './qr_codes'))
 
 # FILL_COLOR determines the color of the QR code itself. Defaults to 'red'.
