@@ -40,7 +40,7 @@ jobs:
 
       - name: Upload Pytest Results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.3
         with:
           name: pytest-results
           path: ./tests
@@ -97,7 +97,7 @@ jobs:
         with:
           image-ref: 'sd2388/fastapi:${{ github.sha }}'
           format: 'table'
-          exit-code: '0' # Allow pipeline to pass with HIGH vulnerabilities
+          exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL'
 
